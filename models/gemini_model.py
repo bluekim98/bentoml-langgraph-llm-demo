@@ -13,38 +13,49 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Initialize Gemini LLM (already provided by user)
-gemini = ChatGoogleGenerativeAI(
-    model=os.getenv("GEMINI_MODEL", "gemini-1.0-pro"), # 환경 변수 또는 기본값 사용
-    temperature=float(os.getenv("GEMINI_TEMPERATURE", 0.0)), # 환경 변수 또는 기본값 사용
-    # google_api_key=os.getenv("GOOGLE_API_KEY") # API 키는 ChatGoogleGenerativeAI 내부적으로 환경 변수에서 로드함
-)
-
 # Initialize PydanticOutputParser at the module level
 output_parser = PydanticOutputParser(pydantic_object=ReviewAnalysisOutput)
 
 def invoke_gemini_with_structured_output(
     prompt_file_path: str,
-    params: dict
+    params: dict,
+    model_name: str,
+    temperature: float
 ) -> ReviewAnalysisOutput:
     """
-    지정된 프롬프트 파일과 파라미터를 사용하여 Gemini 모델을 호출하고,
+    지정된 프롬프트 파일, 파라미터, 모델명, 온도를 사용하여 Gemini 모델을 동적으로 생성 및 호출하고,
     응답을 Pydantic 모델 객체로 구조화하여 반환합니다.
 
     Args:
         prompt_file_path: 사용할 메타 프롬프트 파일의 경로.
         params: 프롬프트 포맷팅에 사용될 딕셔너리 형태의 파라미터.
+        model_name: 사용할 Gemini 모델의 이름 (예: "gemini-1.5-flash-latest"). 필수 입력.
+        temperature: 모델의 생성 온도. 필수 입력.
 
     Returns:
         ReviewAnalysisOutput: Gemini 모델의 응답을 파싱한 Pydantic 객체.
 
     Raises:
+        ValueError: model_name 또는 temperature 파라미터가 누락된 경우.
         FileNotFoundError: 프롬프트 파일이 존재하지 않을 경우.
         OutputParserException: LLM의 응답을 Pydantic 모델로 파싱하지 못할 경우.
         Exception: Gemini API 호출 중 오류 발생 시 또는 기타 예외.
     """
-    logging.info(f"Invoking Gemini with prompt file: {prompt_file_path} and params: {params}")
+    if not model_name or temperature is None: # temperature가 0.0일 수 있으므로 None 체크
+        logging.error("ValueError: model_name and temperature must be provided.")
+        raise ValueError("model_name and temperature must be provided.")
+
+    logging.info(f"Invoking Gemini with prompt file: {prompt_file_path}, params: {params}, model: {model_name}, temperature: {temperature}")
+    
     try:
+        # Dynamically create ChatGoogleGenerativeAI instance
+        llm = ChatGoogleGenerativeAI(
+            model=model_name,
+            temperature=temperature
+            # GOOGLE_API_KEY is typically loaded from environment variables by the library itself
+        )
+        logging.info(f"Dynamically initialized ChatGoogleGenerativeAI with model: {model_name}, temperature: {temperature}")
+
         # 1. Load prompt template from file
         with open(prompt_file_path, 'r', encoding='utf-8') as f:
             prompt_template_str = f.read()
@@ -52,39 +63,35 @@ def invoke_gemini_with_structured_output(
 
         # 2. Get format instructions from the parser
         format_instructions = output_parser.get_format_instructions()
-        logging.info(f"Format instructions for PydanticOutputParser: {format_instructions}")
+        # logging.info(f"Format instructions for PydanticOutputParser: {format_instructions}") # 로그가 너무 길어질 수 있어 주석 처리
 
-        # 3. Format the prompt template with user params and format instructions
-        # Ensure the prompt template has placeholders for all keys in params and for 'format_instructions'
-        # Example prompt template:
-        # """
-        # Your original prompt with {param1}, {param2}...
-        # {format_instructions}
-        # """
+        # 3. Format the prompt template
         full_prompt = prompt_template_str.format(**params, format_instructions=format_instructions)
-        logging.info(f"Formatted prompt: {full_prompt}")
+        # logging.info(f"Formatted prompt: {full_prompt}") # 프롬프트 내용이 민감하거나 길 수 있어 주석 처리
+        logging.info("Prompt formatted successfully.")
 
         # 4. Create HumanMessage
         message = HumanMessage(content=full_prompt)
 
         # 5. Invoke LLM
-        logging.info("Sending request to Gemini LLM...")
-        response = gemini.invoke([message])
-        logging.info(f"Received response from Gemini LLM: {response.content}")
+        logging.info(f"Sending request to Gemini LLM (model: {model_name})...")
+        response = llm.invoke([message]) # Use the dynamically created llm instance
+        logging.info(f"Received response from Gemini LLM (model: {model_name}). Content length: {len(response.content)}")
 
         # 6. Parse the LLM response content
         parsed_output = output_parser.parse(response.content)
-        logging.info(f"Successfully parsed LLM response into Pydantic object: {parsed_output}")
+        logging.info(f"Successfully parsed LLM response into Pydantic object for model: {model_name}")
         return parsed_output
 
     except FileNotFoundError:
         logging.error(f"Prompt file not found: {prompt_file_path}")
         raise
     except OutputParserException as e:
-        logging.error(f"Failed to parse LLM response: {e}")
-        # 추가적으로 LLM의 원본 응답을 로깅하거나 포함하여 예외를 다시 발생시킬 수 있습니다.
-        # raise OutputParserException(f"Original LLM output: {response.content} \\n Parsing error: {e}") from e
+        logging.error(f"Failed to parse LLM response for model {model_name}: {e}. Original content: {response.content if 'response' in locals() else 'Response not available'}")
+        raise
+    except ValueError as e: # Catch the ValueError raisedChecks for missing parameters
+        logging.error(f"ValueError in invoke_gemini_with_structured_output: {e}")
         raise
     except Exception as e:
-        logging.error(f"An unexpected error occurred: {e}")
+        logging.error(f"An unexpected error occurred with model {model_name}: {e}")
         raise

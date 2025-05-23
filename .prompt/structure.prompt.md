@@ -41,6 +41,7 @@ conda activate oslo_env
 - https://python.langchain.com/api_reference/anthropic/index.html
 - https://python.langchain.com/api_reference/openai/index.html
 - https://docs.pytest.org/en/stable/
+- https://ai.google.dev/gemini-api/docs/models?hl=ko&_gl=1*1swjavz*_up*MQ..*_ga*MTEzMTExNjE5Mi4xNzQ3OTkxNzk3*_ga_P1DBVKWT6V*czE3NDc5OTE3OTckbzEkZzAkdDE3NDc5OTE3OTckajAkbDAkaDMxOTM2ODE4OSRkdlk4ZURqUnIteDJiVmtBbFMxWmZiN2RZY19HRC1uc3k1dw..
 
 ## 코드 생성 가이드 프롬프트 규칙
 

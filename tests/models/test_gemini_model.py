@@ -3,19 +3,18 @@ import sys
 import os
 import pytest
 import importlib
-from langchain_core.exceptions import OutputParserException
-from langchain_core.messages import AIMessage # 모킹을 위해 AIMessage 임포트
+# from langchain_core.exceptions import OutputParserException # 현재 사용 안 함
+# from langchain_core.messages import AIMessage # 현재 사용 안 함
 
 # 프로젝트 루트 경로를 sys.path에 추가
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from models.gemini_model import invoke_gemini_with_structured_output, gemini
+from models.gemini_model import invoke_gemini_with_structured_output # gemini import 제거
 from app.schemas import ReviewAnalysisOutput
-# from dotenv import load_dotenv # 필요시 .env 파일 로드
-# load_dotenv()
+from app.config_loader import get_model_config, get_default_model_config_key # config_loader 추가
 
 # pytest-mock 설치 여부 확인
-PYTEST_MOCK_INSTALLED = importlib.util.find_spec("pytest_mock") is not None
+# PYTEST_MOCK_INSTALLED = importlib.util.find_spec("pytest_mock") is not None # 현재 mock 테스트 없음
 
 # GOOGLE_API_KEY 존재 여부 확인
 API_KEY_PRESENT = os.getenv("GOOGLE_API_KEY") is not None
@@ -30,28 +29,48 @@ def valid_params():
     }
 
 @pytest.fixture
-def review_analysis_prompt_file():
-    """리뷰 분석 프롬프트 파일의 절대 경로를 반환하는 fixture"""
-    # 파일 위치가 변경되었으므로, 프로젝트 루트를 찾는 경로도 수정합니다.
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-    # 메타 프롬프트 경로를 새 위치로 업데이트합니다.
-    return os.path.join(project_root, "models/review_analysis_prompt/v0.1.prompt")
+def model_config_from_yaml():
+    """config/model_configurations.yaml 에서 기본 모델 설정을 로드하는 fixture"""
+    default_key = get_default_model_config_key()
+    assert default_key is not None, "기본 모델 설정 키를 찾을 수 없습니다."
+    config = get_model_config(default_key)
+    assert config is not None, f"'{default_key}'에 해당하는 모델 설정을 찾을 수 없습니다."
+    # llm_params 안에 model_name과 temperature가 있는지 확인
+    assert "llm_params" in config and isinstance(config["llm_params"], dict), "llm_params가 설정에 없습니다."
+    assert "model_name" in config["llm_params"], "llm_params에 model_name이 없습니다."
+    assert "temperature" in config["llm_params"], "llm_params에 temperature가 없습니다."
+    assert "prompt_path" in config, "prompt_path가 설정에 없습니다."
+    return config
+
 
 @pytest.mark.skipif(not API_KEY_PRESENT, reason="GOOGLE_API_KEY 환경 변수가 없어 실제 API 호출 테스트를 건너뜁니다.")
-def test_successful_invocation_and_parsing(review_analysis_prompt_file, valid_params):
+def test_successful_invocation_and_parsing(model_config_from_yaml, valid_params):
     """
-    Given: 유효한 프롬프트 파일 경로와 파라미터가 주어지고, GOOGLE_API_KEY가 설정되었을 때
+    Given: 유효한 프롬프트 파일 경로와 파라미터, 모델 설정이 주어지고, GOOGLE_API_KEY가 설정되었을 때
     When: invoke_gemini_with_structured_output 함수를 호출하면
     Then: ReviewAnalysisOutput 타입의 객체를 반환하고, 주요 필드가 유효한 값을 가져야 한다.
     """
     # Given
-    prompt_file_path = review_analysis_prompt_file
+    config = model_config_from_yaml
+    prompt_file_path = config["prompt_path"]
+    model_name = config["llm_params"]["model_name"]
+    temperature = config["llm_params"]["temperature"]
     params = valid_params
-    print(f"\n[Given] 프롬프트 파일: {prompt_file_path}, 파라미터: {params}")
+    
+    # 프로젝트 루트를 기준으로 prompt_file_path를 절대 경로로 변환
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    full_prompt_path = os.path.join(project_root, prompt_file_path)
+
+    print(f"\n[Given] 프롬프트 파일: {full_prompt_path}, 파라미터: {params}, 모델: {model_name}, 온도: {temperature}")
 
     # When
     print("[When] invoke_gemini_with_structured_output 함수 호출")
-    result = invoke_gemini_with_structured_output(prompt_file_path, params)
+    result = invoke_gemini_with_structured_output(
+        prompt_file_path=full_prompt_path, 
+        params=params,
+        model_name=model_name,
+        temperature=temperature
+    )
     
     # Then
     print(f"[Then] 결과 검증: type={type(result)}, score={getattr(result, 'score', 'N/A')}")
@@ -67,19 +86,33 @@ def test_successful_invocation_and_parsing(review_analysis_prompt_file, valid_pa
 
 def test_file_not_found_exception(valid_params):
     """
-    Given: 존재하지 않는 프롬프트 파일 경로와 유효한 파라미터가 주어졌을 때
+    Given: 존재하지 않는 프롬프트 파일 경로와 유효한 파라미터, 임의의 모델 설정이 주어졌을 때
     When: invoke_gemini_with_structured_output 함수를 호출하면
     Then: FileNotFoundError 예외가 발생해야 한다.
     """
     # Given
     non_existent_prompt_path = "models/review_analysis_prompt/this_is_not_a_real_prompt.prompt"
     params = valid_params
-    print(f"\n[Given] 잘못된 프롬프트 파일: {non_existent_prompt_path}, 파라미터: {params}")
+    test_model_name = "test-model-for-filenotfound"
+    test_temperature = 0.0
+    print(f"\n[Given] 잘못된 프롬프트 파일: {non_existent_prompt_path}, 파라미터: {params}, 모델: {test_model_name}, 온도: {test_temperature}")
 
     # When / Then
     print("[When/Then] 존재하지 않는 파일로 함수 호출 시 FileNotFoundError 예외 발생 검증")
     with pytest.raises(FileNotFoundError) as excinfo:
-        invoke_gemini_with_structured_output(non_existent_prompt_path, params)
+        invoke_gemini_with_structured_output(
+            prompt_file_path=non_existent_prompt_path, 
+            params=params,
+            model_name=test_model_name,
+            temperature=test_temperature
+        )
     
-    assert "No such file or directory" in str(excinfo.value)
-    print(f"FileNotFoundError 발생 확인: {excinfo.type}") 
+    # FileNotFoundError의 메시지에 파일 경로가 포함되는지 확인 (OS 따라 메시지 다를 수 있음)
+    assert non_existent_prompt_path in str(excinfo.value) or "No such file or directory" in str(excinfo.value)
+    print(f"FileNotFoundError 발생 확인: {excinfo.type}")
+
+# review_analysis_prompt_file fixture는 model_config_from_yaml로 대체되었으므로 제거
+# @pytest.fixture
+# def review_analysis_prompt_file():
+#     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+#     return os.path.join(project_root, "models/review_analysis_prompt/v0.1.prompt") 
