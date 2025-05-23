@@ -1,0 +1,5 @@
+service: "bentos.service.py:OsloService"
+include:
+  - "*.py"
+python:
+  lock_packages: true      # 빌드 시점에 모든 패키지 버전을 고정
