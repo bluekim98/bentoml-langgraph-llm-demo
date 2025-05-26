@@ -24,18 +24,17 @@
         -   `review_text: str`: 고객 리뷰 원문
         -   `rating: int | float`: 고객 평점 (1-5)
         -   `ordered_items: str | list[str]`: 주문 메뉴 (문자열 또는 문자열 리스트)
-        -   `selected_model_config_key: str | None`: `config/model_configurations.yaml`에 정의된 분석에 사용할 모델 설정의 키. `None`일 경우 `app.config_loader.get_default_model_config_key()`를 사용하여 기본 키를 가져옵니다.
+        -   `selected_model_config_key: str | None`: `config/model_configurations.yaml`에 정의된 분석에 사용할 모델 설정의 키. `None`일 경우 `app.config_loader.get_model_config()`가 내부적으로 기본 설정을 로드합니다.
 -   **처리 과정**:
-    1.  `state` 딕셔너리에서 `review_text`, `rating`, `ordered_items` 및 `selected_model_config_key`를 추출합니다.
-    2.  `selected_model_config_key`가 `None`이면, `app.config_loader.get_default_model_config_key()`를 호출하여 기본 설정 키를 가져옵니다. 기본 키도 없으면 오류 처리합니다.
-    3.  `app.config_loader.get_model_config(selected_model_config_key)`를 호출하여 해당 키에 대한 모델 설정을 로드합니다. 설정 로드 실패 시 오류 처리합니다.
-    4.  로드된 설정에서 `client_module` (예: "models.gemini_model"), `client_function_name` (예: "invoke_gemini_with_structured_output"), `llm_params` (예: `{"model_name": "gemini-2.0-flash", "temperature": 0.0}`), `prompt_path`를 추출합니다.
-    5.  `importlib.import_module(client_module)`을 사용하여 클라이언트 모듈을 동적으로 임포트합니다.
-    6.  `getattr(imported_module, client_function_name)`을 사용하여 모듈에서 실제 함수를 가져옵니다.
-    7.  추출된 리뷰 관련 입력(`review_text`, `rating`, `ordered_items`)을 `params` 딕셔너리로 구성합니다.
-    8.  가져온 함수를 `prompt_path`, `params`, 그리고 `llm_params`의 `model_name`과 `temperature`를 인자로 전달하여 호출합니다. (예: `invokable_function(prompt_file_path=full_prompt_path, params=review_params, model_name=llm_params["model_name"], temperature=llm_params["temperature"])`)
-    9.  모델 함수 호출 시 발생할 수 있는 예외(예: `FileNotFoundError`, `OutputParserException`, `ValueError` (모델 파라미터 누락 시), 동적 임포트/함수 호출 관련 예외 등)를 적절히 처리하고 로깅합니다. 분석 실패 시, 오류 정보를 포함하여 반환합니다.
-    10. 프로젝트 루트를 기준으로 `prompt_path`를 절대 경로로 변환하여 함수에 전달합니다.
+    1.  `state` 딕셔너리에서 `review_text`, `rating`, `ordered_items` 및 `selected_model_config_key` (이하 `key_from_state`)를 추출합니다.
+    2.  `app.config_loader.get_model_config(config_key=key_from_state)`를 호출하여 모델 설정을 로드합니다. `key_from_state`가 `None`이면 `get_model_config` 함수가 기본 설정을 로드합니다. 설정 로드 실패 시 (예: `get_model_config`가 `None`을 반환하거나 예외 발생 시) 오류 처리합니다.
+    3.  로드된 설정에서 `client_module` (예: "models.gemini_model"), `client_function_name` (예: "invoke_gemini_with_structured_output"), `llm_params` (예: `{"model_name": "gemini-2.0-flash", "temperature": 0.0}`), `prompt_path`를 추출합니다.
+    4.  `importlib.import_module(client_module)`을 사용하여 클라이언트 모듈을 동적으로 임포트합니다.
+    5.  `getattr(imported_module, client_function_name)`을 사용하여 모듈에서 실제 함수를 가져옵니다.
+    6.  추출된 리뷰 관련 입력(`review_text`, `rating`, `ordered_items`)을 `params` 딕셔너리로 구성합니다.
+    7.  가져온 함수를 `prompt_path`, `params`, 그리고 `llm_params`의 `model_name`과 `temperature`를 인자로 전달하여 호출합니다. (예: `invokable_function(prompt_file_path=full_prompt_path, params=review_params, model_name=llm_params["model_name"], temperature=llm_params["temperature"])`)
+    8.  모델 함수 호출 시 발생할 수 있는 예외(예: `FileNotFoundError`, `OutputParserException`, `ValueError` (모델 파라미터 누락 시), 동적 임포트/함수 호출 관련 예외 등)를 적절히 처리하고 로깅합니다. 분석 실패 시, 오류 정보를 포함하여 반환합니다.
+    9. 프로젝트 루트를 기준으로 `prompt_path`를 절대 경로로 변환하여 함수에 전달합니다.
 -   **반환 (`dict`)**:
     -   LangGraph 상태를 업데이트하기 위한 _부분적인_ 상태 딕셔너리입니다.
     -   성공 시 예상 키:

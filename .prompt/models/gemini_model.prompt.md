@@ -8,7 +8,7 @@
 
 ## 3. 주요 변경 사항
 -   기존 모듈 수준에서 정적으로 생성되던 `ChatGoogleGenerativeAI` 인스턴스(`gemini`)를 제거합니다.
--   `invoke_gemini_with_structured_output` 함수가 `model_name` (예: "gemini-1.5-flash-latest") 및 `temperature` 파라미터를 명시적으로 받도록 변경합니다.
+-   `invoke_gemini_with_structured_output` 함수가 `model_name` (예: "gemini-2.0-flash") 및 `temperature` 파라미터를 명시적으로 받도록 변경합니다.
 -   `invoke_gemini_with_structured_output` 함수 내에서 전달받은 `model_name`과 `temperature`를 사용하여 `ChatGoogleGenerativeAI` 인스턴스를 동적으로 생성합니다.
 -   `model_name` 또는 `temperature` 파라미터가 누락된 경우 `ValueError`를 발생시킵니다.
 -   API 키는 `ChatGoogleGenerativeAI`가 내부적으로 환경 변수 `GOOGLE_API_KEY`에서 로드하는 것을 계속 활용합니다.
@@ -21,7 +21,7 @@
 -   **입력**:
     -   `prompt_file_path: str`: 사용할 메타 프롬프트 파일의 경로.
     -   `params: dict`: 프롬프트 포맷팅에 사용될 딕셔너리 형태의 파라미터.
-    -   `model_name: str`: 사용할 Gemini 모델의 이름 (예: "gemini-1.5-flash-latest", "gemini-1.0-pro"). **필수 입력**.
+    -   `model_name: str`: 사용할 Gemini 모델의 이름 (예: "gemini-2.0-flash", "gemini-pro"). **필수 입력**.
     -   `temperature: float`: 모델의 생성 온도. **필수 입력**.
 -   **처리 과정**:
     1.  `model_name`과 `temperature` 파라미터가 제공되었는지 확인합니다. 누락 시 `ValueError`를 발생시킵니다.
@@ -38,7 +38,9 @@
 
 ## 5. 로깅
 -   표준 `logging` 모듈을 사용합니다.
--   함수 호출 시 사용된 `model_name`, `temperature`, 프롬프트 파일 경로, 주요 파라미터, 성공/실패 여부 등을 로깅합니다.
+-   함수 호출 시 사용된 `model_name`, `temperature`, 프롬프트 파일 경로 등을 로깅합니다.
+-   입력 `params` 로깅 시에는 민감한 정보나 과도한 길이의 데이터를 포함할 가능성에 유의하여, 전체 내용을 직접 로깅하기보다는 키 목록이나 안전하다고 판단되는 일부 값만 요약하여 로깅하는 것을 고려합니다.
+-   성공/실패 여부 및 주요 예외 발생 시 관련 정보를 로깅합니다.
 
 ## 6. 모듈 수준 초기화
 -   `PydanticOutputParser(pydantic_object=ReviewAnalysisOutput)`는 모듈 수준에서 계속 초기화하여 재사용합니다.

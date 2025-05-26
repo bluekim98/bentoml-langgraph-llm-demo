@@ -45,7 +45,7 @@ def invoke_gemini_with_structured_output(
         logging.error("ValueError: model_name and temperature must be provided.")
         raise ValueError("model_name and temperature must be provided.")
 
-    logging.info(f"Invoking Gemini with prompt file: {prompt_file_path}, params: {params}, model: {model_name}, temperature: {temperature}")
+    logging.info(f"Invoking Gemini with prompt file: {prompt_file_path}, param keys: {list(params.keys()) if params else None}, model: {model_name}, temperature: {temperature}")
     
     try:
         # Dynamically create ChatGoogleGenerativeAI instance
@@ -87,7 +87,10 @@ def invoke_gemini_with_structured_output(
         logging.error(f"Prompt file not found: {prompt_file_path}")
         raise
     except OutputParserException as e:
-        logging.error(f"Failed to parse LLM response for model {model_name}: {e}. Original content: {response.content if 'response' in locals() else 'Response not available'}")
+        # 여기서 response.content를 로깅할 때도 매우 길거나 민감할 수 있으므로 주의가 필요합니다.
+        # 필요한 경우 일부만 로깅하거나 길이를 제한하는 것이 좋습니다.
+        original_content_snippet = response.content[:500] if 'response' in locals() and response and hasattr(response, 'content') and isinstance(response.content, str) else 'Response not available or not string type'
+        logging.error(f"Failed to parse LLM response for model {model_name}: {e}. Original content snippet: {original_content_snippet}")
         raise
     except ValueError as e: # Catch the ValueError raisedChecks for missing parameters
         logging.error(f"ValueError in invoke_gemini_with_structured_output: {e}")

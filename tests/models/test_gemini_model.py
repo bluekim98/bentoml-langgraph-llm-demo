@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 
 from models.gemini_model import invoke_gemini_with_structured_output # gemini import 제거
 from app.schemas import ReviewAnalysisOutput
-from app.config_loader import get_model_config, get_default_model_config_key # config_loader 추가
+from app.config_loader import get_model_config # config_loader 추가
 
 # pytest-mock 설치 여부 확인
 # PYTEST_MOCK_INSTALLED = importlib.util.find_spec("pytest_mock") is not None # 현재 mock 테스트 없음
@@ -31,10 +31,8 @@ def valid_params():
 @pytest.fixture
 def model_config_from_yaml():
     """config/model_configurations.yaml 에서 기본 모델 설정을 로드하는 fixture"""
-    default_key = get_default_model_config_key()
-    assert default_key is not None, "기본 모델 설정 키를 찾을 수 없습니다."
-    config = get_model_config(default_key)
-    assert config is not None, f"'{default_key}'에 해당하는 모델 설정을 찾을 수 없습니다."
+    config = get_model_config(None)
+    assert config is not None, "기본 모델 설정을 로드할 수 없습니다. get_model_config(None)이 None을 반환했습니다."
     # llm_params 안에 model_name과 temperature가 있는지 확인
     assert "llm_params" in config and isinstance(config["llm_params"], dict), "llm_params가 설정에 없습니다."
     assert "model_name" in config["llm_params"], "llm_params에 model_name이 없습니다."
