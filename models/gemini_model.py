@@ -28,7 +28,7 @@ def invoke_gemini_with_structured_output(
 
     Args:
         prompt_file_path: 사용할 메타 프롬프트 파일의 경로.
-        params: 프롬프트 포맷팅에 사용될 `app.schemas.ReviewInputs` 타입의 딕셔너리.
+        params: 프롬프트 포맷팅에 사용될 `app.schemas.ReviewInputs` Pydantic 모델.
         model_name: 사용할 Gemini 모델의 이름 (예: "gemini-1.5-flash-latest"). 필수 입력.
         temperature: 모델의 생성 온도. 필수 입력.
 
@@ -41,44 +41,35 @@ def invoke_gemini_with_structured_output(
         OutputParserException: LLM의 응답을 Pydantic 모델로 파싱하지 못할 경우.
         Exception: Gemini API 호출 중 오류 발생 시 또는 기타 예외.
     """
-    if not model_name or temperature is None: # temperature가 0.0일 수 있으므로 None 체크
+    if not model_name or temperature is None:
         logging.error("ValueError: model_name and temperature must be provided.")
         raise ValueError("model_name and temperature must be provided.")
 
-    logging.info(f"Invoking Gemini with prompt file: {prompt_file_path}, param keys: {list(params.keys()) if params else None}, model: {model_name}, temperature: {temperature}")
+    param_field_keys = list(ReviewInputs.model_fields.keys()) if params else None 
+    logging.info(f"Invoking Gemini with prompt file: {prompt_file_path}, param fields: {param_field_keys}, model: {model_name}, temperature: {temperature}")
     
     try:
-        # Dynamically create ChatGoogleGenerativeAI instance
         llm = ChatGoogleGenerativeAI(
             model=model_name,
             temperature=temperature
-            # GOOGLE_API_KEY is typically loaded from environment variables by the library itself
         )
         logging.info(f"Dynamically initialized ChatGoogleGenerativeAI with model: {model_name}, temperature: {temperature}")
 
-        # 1. Load prompt template from file
         with open(prompt_file_path, 'r', encoding='utf-8') as f:
             prompt_template_str = f.read()
         logging.info(f"Successfully loaded prompt template from {prompt_file_path}")
 
-        # 2. Get format instructions from the parser
         format_instructions = output_parser.get_format_instructions()
-        # logging.info(f"Format instructions for PydanticOutputParser: {format_instructions}") # 로그가 너무 길어질 수 있어 주석 처리
 
-        # 3. Format the prompt template
-        full_prompt = prompt_template_str.format(**params, format_instructions=format_instructions)
-        # logging.info(f"Formatted prompt: {full_prompt}") # 프롬프트 내용이 민감하거나 길 수 있어 주석 처리
+        full_prompt = prompt_template_str.format(**params.model_dump(), format_instructions=format_instructions)
         logging.info("Prompt formatted successfully.")
 
-        # 4. Create HumanMessage
         message = HumanMessage(content=full_prompt)
 
-        # 5. Invoke LLM
         logging.info(f"Sending request to Gemini LLM (model: {model_name})...")
-        response = llm.invoke([message]) # Use the dynamically created llm instance
+        response = llm.invoke([message])
         logging.info(f"Received response from Gemini LLM (model: {model_name}). Content length: {len(response.content)}")
 
-        # 6. Parse the LLM response content
         parsed_output = output_parser.parse(response.content)
         logging.info(f"Successfully parsed LLM response into Pydantic object for model: {model_name}")
         return parsed_output
@@ -87,12 +78,10 @@ def invoke_gemini_with_structured_output(
         logging.error(f"Prompt file not found: {prompt_file_path}")
         raise
     except OutputParserException as e:
-        # 여기서 response.content를 로깅할 때도 매우 길거나 민감할 수 있으므로 주의가 필요합니다.
-        # 필요한 경우 일부만 로깅하거나 길이를 제한하는 것이 좋습니다.
         original_content_snippet = response.content[:500] if 'response' in locals() and response and hasattr(response, 'content') and isinstance(response.content, str) else 'Response not available or not string type'
         logging.error(f"Failed to parse LLM response for model {model_name}: {e}. Original content snippet: {original_content_snippet}")
         raise
-    except ValueError as e: # Catch the ValueError raisedChecks for missing parameters
+    except ValueError as e:
         logging.error(f"ValueError in invoke_gemini_with_structured_output: {e}")
         raise
     except Exception as e:

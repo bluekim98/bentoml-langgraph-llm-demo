@@ -17,10 +17,10 @@
 
 ### 4.1. `invoke_gemini_with_structured_output(prompt_file_path: str, params: app.schemas.ReviewInputs, model_name: str, temperature: float) -> ReviewAnalysisOutput`
 
--   **목적**: 지정된 프롬프트 파일, 리뷰 관련 파라미터 (`app.schemas.ReviewInputs` 타입), 모델명, 온도를 사용하여 Gemini 모델을 동적으로 생성 및 호출하고, 응답을 Pydantic 모델 객체로 구조화하여 반환합니다.
+-   **목적**: 지정된 프롬프트 파일, 리뷰 관련 파라미터 (`app.schemas.ReviewInputs` Pydantic 모델), 모델명, 온도를 사용하여 Gemini 모델을 동적으로 생성 및 호출하고, 응답을 Pydantic 모델 객체로 구조화하여 반환합니다.
 -   **입력**:
     -   `prompt_file_path: str`: 사용할 메타 프롬프트 파일의 경로.
-    -   `params: app.schemas.ReviewInputs`: 프롬프트 포맷팅에 사용될 `TypedDict`. `review_text`, `rating`, `ordered_items` 키를 포함합니다. (`app/schemas.py`에 정의된 `ReviewInputs` 사용)
+    -   `params: app.schemas.ReviewInputs`: 프롬프트 포맷팅에 사용될 Pydantic 모델. `params.review_text`, `params.rating`, `params.ordered_items`와 같이 속성으로 접근합니다. (`app/schemas.py`에 정의된 Pydantic 모델 `ReviewInputs` 사용)
     -   `model_name: str`: 사용할 Gemini 모델의 이름 (예: "gemini-2.0-flash", "gemini-pro"). **필수 입력**.
     -   `temperature: float`: 모델의 생성 온도. **필수 입력**.
 -   **처리 과정**:
@@ -28,7 +28,7 @@
     2.  `ChatGoogleGenerativeAI(model=model_name, temperature=temperature)`를 사용하여 LLM 인스턴스를 동적으로 생성합니다.
     3.  지정된 `prompt_file_path`에서 프롬프트 템플릿을 로드합니다.
     4.  `PydanticOutputParser` (모듈 수준에서 계속 유지 가능)로부터 포맷 지침을 가져옵니다.
-    5.  프롬프트 템플릿에 `params`와 포맷 지침을 적용하여 전체 프롬프트를 구성합니다.
+    5.  프롬프트 템플릿에 `params` (Pydantic 모델이므로 필요시 `.model_dump()`를 사용하여 딕셔너리로 변환)와 포맷 지침을 적용하여 전체 프롬프트를 구성합니다.
     6.  구성된 프롬프트로 `HumanMessage`를 생성합니다.
     7.  생성된 LLM 인스턴스의 `invoke` 메서드를 호출하여 응답을 받습니다.
     8.  응답 내용을 `output_parser.parse()`를 통해 `ReviewAnalysisOutput` Pydantic 모델로 파싱합니다.

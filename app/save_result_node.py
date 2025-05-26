@@ -1,9 +1,8 @@
 import os
 import logging
 from datetime import datetime
-import ast # For safely evaluating string representations of lists
 
-from app.schemas import ReviewAnalysisOutput
+from app.schemas import AgentState, ReviewInputs, ReviewAnalysisOutput # Added AgentState, ReviewInputs
 
 # 이 모듈을 위한 로깅 설정
 logger = logging.getLogger(__name__)
@@ -11,26 +10,39 @@ logger = logging.getLogger(__name__)
 # 결과 파일을 저장할 기본 디렉토리 (프로젝트 루트 기준)
 RESULTS_DIR = "data/result"
 
-def save_analysis_result_node(state: dict) -> dict:
+def save_analysis_result_node(state: AgentState) -> dict:
     """
-    LangGraph의 상태(state)를 입력받아 분석 조건과 결과를 Markdown 파일로 저장하고,
+    LangGraph의 상태(AgentState Pydantic 모델)를 입력받아 분석 조건과 결과를 Markdown 파일로 저장하고,
     저장된 파일 경로 등의 정보를 포함하는 딕셔너리를 반환합니다.
     """
-    logger.info(f"save_analysis_result_node 실행. 상태 키: {list(state.keys())}")
+    logger.info(f"save_analysis_result_node 실행. 상태 객체: {state.model_dump(exclude_none=True) if state else None}")
 
-    saved_filepath = None
-    save_error_message = None
+    saved_filepath_val = None 
+    save_error_message_val = None
 
     try:
-        # 1. state에서 데이터 추출
-        review_inputs = state.get("review_inputs", {})
-        model_key_used = state.get("model_key_used") # None일 수 있음
-        analysis_output: ReviewAnalysisOutput | None = state.get("analysis_output")
-        analysis_error_message = state.get("analysis_error_message")
+        # 1. state Pydantic 모델에서 데이터 직접 접근
+        current_review_inputs: ReviewInputs | None = state.review_inputs
+        actual_model_name = state.actual_model_name_used 
+        current_analysis_output: ReviewAnalysisOutput | None = state.analysis_output
+        analysis_error_from_previous_node: str | None = state.analysis_error_message
 
-        review_text = review_inputs.get("review_text", "N/A")
-        rating = review_inputs.get("rating", "N/A")
-        ordered_items_raw = review_inputs.get("ordered_items", "N/A")
+        if current_review_inputs: # Ensure current_review_inputs is not None before accessing attributes
+            review_text = current_review_inputs.review_text
+            rating = current_review_inputs.rating
+            ordered_items_list = current_review_inputs.ordered_items
+        else:
+            review_text = "N/A"
+            rating = "N/A"
+            ordered_items_list = [] # Default to empty list if no inputs
+
+        # 주문 메뉴 리스트를 Markdown 리스트 문자열로 변환
+        if ordered_items_list:
+            ordered_items_md = "\n".join([f"- {item}" for item in ordered_items_list])
+        else:
+            ordered_items_md = "- N/A"
+
+        model_name_display = actual_model_name if actual_model_name else "모델 정보 없음 (또는 기본 모델 사용)"
 
         # 2. 파일명 및 경로 생성
         now = datetime.now()
@@ -39,7 +51,7 @@ def save_analysis_result_node(state: dict) -> dict:
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         target_dir = os.path.join(project_root, RESULTS_DIR)
         
-        saved_filepath = os.path.join(target_dir, filename)
+        saved_filepath_val = os.path.join(target_dir, filename)
 
         # 3. 디렉토리 생성 (없는 경우)
         os.makedirs(target_dir, exist_ok=True)
@@ -49,69 +61,48 @@ def save_analysis_result_node(state: dict) -> dict:
         markdown_content = f"# 리뷰 분석 결과\n\n"
         markdown_content += f"## 실행 정보\n"
         markdown_content += f"- **저장 일시**: {now.strftime('%Y-%m-%d %H:%M:%S.%f')}\n"
-        model_key_display = model_key_used if model_key_used is not None else "기본 설정 사용 (키 정보 없음)"
-        markdown_content += f"- **사용된 모델 설정 키**: `{model_key_display}`\n\n"
+        markdown_content += f"- **사용된 모델**: `{model_name_display}`\n\n" # Backticks for model name
 
         markdown_content += f"## 분석 조건 (Inputs)\n\n"
         markdown_content += f"### 리뷰 원문\n> {review_text}\n\n"
         markdown_content += f"### 평점\n{rating}\n\n"
         
-        ordered_items_display_lines = []
-        if isinstance(ordered_items_raw, list):
-            for item in ordered_items_raw:
-                ordered_items_display_lines.append(f"- {item}")
-        elif isinstance(ordered_items_raw, str):
-            try:
-                # 문자열이 리스트 형태인지 안전하게 파싱 시도 (예: "['item1', 'item2']")
-                parsed_items = ast.literal_eval(ordered_items_raw)
-                if isinstance(parsed_items, list):
-                    for item in parsed_items:
-                        ordered_items_display_lines.append(f"- {item}")
-                else:
-                    ordered_items_display_lines.append(f"- {ordered_items_raw}") # 파싱했으나 리스트가 아닌 경우
-            except (ValueError, SyntaxError):
-                 ordered_items_display_lines.append(f"- {ordered_items_raw}") # 파싱 실패 시 원본 문자열
-        else:
-            ordered_items_display_lines.append(f"- {str(ordered_items_raw)}") # 기타 타입
-        
-        ordered_items_str = '\n'.join(ordered_items_display_lines) if ordered_items_display_lines else 'N/A'
-        markdown_content += f"### 주문 메뉴\n{ordered_items_str}\n\n"
+        markdown_content += f"### 주문 메뉴\n{ordered_items_md}\n\n"
 
         markdown_content += f"## 분석 결과 (Outputs)\n\n"
-        if analysis_error_message:
+        if analysis_error_from_previous_node:
             markdown_content += f"### 분석 오류 발생\n"
-            markdown_content += f"`analyze_review_node`에서 다음 오류가 발생했습니다: {analysis_error_message}\n"
-        elif analysis_output:
-            markdown_content += f"### 리뷰 점수 (Score)\n{analysis_output.score}\n\n"
-            markdown_content += f"### 요약 (Summary)\n{analysis_output.summary}\n\n"
+            markdown_content += f"`analyze_review_node`에서 다음 오류가 발생했습니다: {analysis_error_from_previous_node}\n"
+        elif current_analysis_output:
+            markdown_content += f"### 리뷰 점수 (Score)\n{current_analysis_output.score}\n\n"
+            markdown_content += f"### 요약 (Summary)\n{current_analysis_output.summary}\n\n"
             
-            keywords_str = "\n".join([f"- {kw}" for kw in analysis_output.keywords]) if analysis_output.keywords else "N/A"
+            keywords_str = "\n".join([f"- {kw}" for kw in current_analysis_output.keywords]) if current_analysis_output.keywords else "N/A"
             markdown_content += f"### 주요 키워드 (Keywords)\n{keywords_str}\n\n"
             
-            markdown_content += f"### 생성된 답변 (Reply)\n{analysis_output.reply}\n\n"
-            markdown_content += f"### 점수 판단 근거 (Analysis Score)\n{analysis_output.analysis_score}\n\n"
-            markdown_content += f"### 답변 생성 근거 (Analysis Reply)\n{analysis_output.analysis_reply}\n"
+            markdown_content += f"### 생성된 답변 (Reply)\n{current_analysis_output.reply}\n\n"
+            markdown_content += f"### 점수 판단 근거 (Analysis Score)\n{current_analysis_output.analysis_score}\n\n"
+            markdown_content += f"### 답변 생성 근거 (Analysis Reply)\n{current_analysis_output.analysis_reply}\n"
         else:
             markdown_content += "분석 결과가 없거나 분석 오류 정보도 없습니다.\n"
 
         # 5. 파일 쓰기
-        with open(saved_filepath, "w", encoding="utf-8") as f:
+        with open(saved_filepath_val, "w", encoding="utf-8") as f:
             f.write(markdown_content)
         
-        logger.info(f"분석 결과가 성공적으로 저장되었습니다: {saved_filepath}")
+        logger.info(f"분석 결과가 성공적으로 저장되었습니다: {saved_filepath_val}")
 
     except IOError as e:
-        save_error_message = f"파일 저장 중 I/O 오류 발생: {e}"
-        logger.error(save_error_message, exc_info=True)
-        # saved_filepath는 오류 발생 시 None이거나, 오류 발생 전의 값일 수 있음. None으로 명시.
-        saved_filepath = None 
+        save_error_message_val = f"파일 저장 중 I/O 오류 발생: {e}"
+        logger.error(save_error_message_val, exc_info=True)
+        saved_filepath_val = None 
     except Exception as e:
-        save_error_message = f"save_analysis_result_node 함수에서 예기치 않은 오류 발생: {e}"
-        logger.error(save_error_message, exc_info=True)
-        saved_filepath = None
+        save_error_message_val = f"save_analysis_result_node 함수에서 예기치 않은 오류 발생: {e}"
+        logger.error(save_error_message_val, exc_info=True)
+        saved_filepath_val = None
 
-    # 6. 결과 반환
+    # 6. 결과 반환 (AgentState 필드명과 일치하는 키 사용)
     return {
-        "saved_filepath": saved_filepath,
-        "save_error_message": save_error_message
+        "saved_filepath": saved_filepath_val,
+        "save_error_message": save_error_message_val
     }

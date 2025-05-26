@@ -14,25 +14,25 @@
 ## 4. 그래프 구성 요소
 
 ### 4.1. 상태 정의 (State Definition)
--   그래프 전체에서 공유될 상태는 `app.schemas.py`에 정의된 `AgentState` TypedDict를 사용합니다.
--   `AgentState`에는 다음의 주요 키들이 포함됩니다 (세부 타입은 `app.schemas.AgentState` 참조):
-    -   `review_inputs: Optional[app.schemas.ReviewInputs]`: 리뷰 분석에 필요한 초기 입력.
-    -   `selected_model_config_key: Optional[str]`: 사용자가 선택한 모델 설정 키.
-    -   `analysis_output: Optional[app.schemas.ReviewAnalysisOutput]`: `analyze_review_node`의 결과.
-    -   `model_key_used: Optional[str]`: `analyze_review_node`에서 실제로 사용된 모델 키.
-    -   `analysis_error_message: Optional[str]`: `analyze_review_node`에서 발생한 오류 메시지.
-    -   `saved_filepath: Optional[str]`: `save_result_node`에서 결과가 저장된 파일 경로.
-    -   `save_error_message: Optional[str]`: `save_result_node`에서 파일 저장 중 발생한 오류 메시지.
+-   그래프 전체에서 공유될 상태는 `app.schemas.py`에 정의된 `AgentState` Pydantic 모델을 사용합니다.
+-   `AgentState` Pydantic 모델은 다음의 주요 필드들을 포함합니다 (세부 타입은 `app.schemas.AgentState` 참조):
+    -   `review_inputs: Optional[app.schemas.ReviewInputs] = None`: 리뷰 분석에 필요한 초기 입력 (Pydantic 모델).
+    -   `selected_model_config_key: Optional[str] = None`: 사용자가 선택한 모델 설정 키.
+    -   `analysis_output: Optional[app.schemas.ReviewAnalysisOutput] = None`: `analyze_review_node`의 결과 (Pydantic 모델).
+    -   `model_key_used: Optional[str] = None`: `analyze_review_node`에서 실제로 사용된 모델 키.
+    -   `analysis_error_message: Optional[str] = None`: `analyze_review_node`에서 발생한 오류 메시지.
+    -   `saved_filepath: Optional[str] = None`: `save_result_node`에서 결과가 저장된 파일 경로.
+    -   `save_error_message: Optional[str] = None`: `save_result_node`에서 파일 저장 중 발생한 오류 메시지.
 
 ### 4.2. 노드 (Nodes)
 1.  **`analyze_review_node`**:
     -   `app.analyze_review_node.analyze_review_for_graph` 함수를 노드로 추가합니다.
-    -   입력: `state` (주로 `review_inputs`, `selected_model_config_key` 사용).
-    -   출력: `state` 업데이트 (주로 `analysis_output`, `model_key_used`, `analysis_error_message` 필드).
+    -   입력: `state: app.schemas.AgentState` (Pydantic 모델, 주로 `state.review_inputs`, `state.selected_model_config_key` 사용).
+    -   출력: `dict` (주로 `analysis_output`, `model_key_used`, `analysis_error_message` 필드를 업데이트하여 `AgentState`의 해당 필드에 반영됨).
 2.  **`save_result_node`**:
     -   `app.save_result_node.save_analysis_result_node` 함수를 노드로 추가합니다.
-    -   입력: `state` (`analyze_review_node`의 출력을 포함한 전체 상태).
-    -   출력: `state` 업데이트 (주로 `saved_filepath`, `save_error_message` 필드).
+    -   입력: `state: app.schemas.AgentState` (Pydantic 모델, `analyze_review_node`의 출력을 포함한 전체 상태).
+    -   출력: `dict` (주로 `saved_filepath`, `save_error_message` 필드를 업데이트하여 `AgentState`의 해당 필드에 반영됨).
 
 ### 4.3. 엣지 (Edges)
 -   **Entry Point**: 그래프의 진입점을 설정합니다. (`set_entry_point("analyze_review_node")`)
@@ -44,7 +44,7 @@
 ### 5.1. `create_graph() -> langgraph.graph.graph.Graph` (또는 `StateGraph`)
 -   **목적**: 위에서 정의한 상태, 노드, 엣지를 사용하여 `StateGraph` 인스턴스를 생성하고 반환합니다.
 -   **처리 과정**:
-    1.  상태 정의에 따라 `StateGraph`를 초기화합니다. (예: `StateGraph(AgentStateTypedDict)`)
+    1.  `app.schemas.AgentState` Pydantic 모델을 사용하여 `StateGraph`를 초기화합니다. (예: `StateGraph(app.schemas.AgentState)`)
     2.  `add_node()`를 사용하여 `analyze_review_node`와 `save_result_node`를 그래프에 추가합니다.
     3.  `set_entry_point()`로 진입점을 `analyze_review_node`로 설정합니다.
     4.  `add_edge()`를 사용하여 노드 간의 흐름(엣지)을 정의합니다.
@@ -65,8 +65,8 @@
 -   `langgraph.constants.END`
 -   `app.analyze_review_node.analyze_review_for_graph`
 -   `app.save_result_node.save_analysis_result_node`
--   `app.schemas` (상태 정의 시 `ReviewAnalysisOutput` 참조 가능)
--   `typing` (상태 정의 시 `TypedDict` 사용 경우)
+-   `app.schemas` (상태 정의 시 `AgentState`, `ReviewInputs`, `ReviewAnalysisOutput` Pydantic 모델 참조)
+-   `typing` (필요시 Optional 등 사용)
 
 ## 7. BentoML 연동 고려사항
 -   `get_compiled_graph()` 함수는 BentoML의 `bentoml.Service` 정의에서 그래프 애플리케이션을 로드하고 초기화하는 데 사용될 수 있습니다.
