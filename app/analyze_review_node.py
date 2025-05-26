@@ -67,6 +67,17 @@ def analyze_review_for_graph(state: AgentState) -> dict:
         actual_model_name_to_store = llm_params_config.get("model_name")
         temperature = llm_params_config.get("temperature")
         
+        if actual_model_name_to_store is None or temperature is None:
+            error_msg = f"'{selected_model_key}' 설정에서 model_name 또는 temperature를 찾을 수 없습니다."
+            logger.error(error_msg)
+            return {
+                "review_inputs": current_review_inputs,
+                "analysis_output": None,
+                "model_key_used": selected_model_key,
+                "actual_model_name_used": actual_model_name_to_store,
+                "analysis_error_message": error_msg,
+            }
+
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         full_prompt_path = os.path.join(project_root, prompt_path_relative)
 
@@ -76,9 +87,7 @@ def analyze_review_for_graph(state: AgentState) -> dict:
         logger.info(f"함수 '{client_function_name}' 로딩 성공.")
 
         logger.info(
-            f"LLM 함수 호출. 프롬프트: '{full_prompt_path}', "
-            f"모델명: '{actual_model_name_to_store}', 온도: {temperature}, "
-            f"입력 파라미터 필드: {list(ReviewInputs.model_fields.keys())}"
+            f"LLM 함수 호출 (공통 인터페이스 사용). 함수: {client_function_name}, 모델: {actual_model_name_to_store}, 온도: {temperature}, 프롬프트: '{full_prompt_path}'"
         )
         
         analysis_result: ReviewAnalysisOutput = invokable_function(
@@ -117,6 +126,6 @@ def analyze_review_for_graph(state: AgentState) -> dict:
         "review_inputs": current_review_inputs, 
         "analysis_output": None,
         "model_key_used": selected_model_key, 
-        "actual_model_name_used": actual_model_name_to_store, 
+        "actual_model_name_used": llm_params_config.get("model_name") if isinstance(model_config_dict, dict) and isinstance(model_config_dict.get("llm_params"), dict) else None, 
         "analysis_error_message": analysis_error_msg,
     }

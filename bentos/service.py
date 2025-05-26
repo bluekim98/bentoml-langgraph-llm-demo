@@ -39,7 +39,7 @@ class ReviewAnalysisService:
         
         initial_graph_state = AgentState(
             review_inputs=review_inputs_model,
-            selected_model_config_key=None
+            selected_model_config_key="gpt_4o_mini"
         )
         logger.debug(f"ReviewAnalysisService: Constructed initial_graph_state: {{initial_graph_state.model_dump(exclude_none=True)}}")
 

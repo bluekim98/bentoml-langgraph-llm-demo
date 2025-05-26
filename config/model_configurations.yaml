@@ -8,4 +8,15 @@ model_configurations:
     llm_params:
       model_name: "gemini-2.0-flash" # 사용 가능한 모델명으로 수정
       temperature: 0.0
-    prompt_path: "models/review_analysis_prompt/v0.1.prompt" 
+    prompt_path: "models/review_analysis_prompt/v0.1.prompt"
+
+  gpt_4o_mini:
+    description: "OpenAI GPT-4o Mini model for cost-effective and fast analysis."
+    provider: "openai"
+    client_module: "models.openai_model"
+    client_function_name: "invoke_openai_with_structured_output"
+    llm_params:
+      model_name: "gpt-4o-mini"      # OpenAI API에 전달될 실제 모델 식별자
+      temperature: 0.2
+      # max_output_tokens: 2048  # 필요시 analyze_review_node.py에서 이 값을 읽어 사용하거나, openai_model.py에서 직접 처리 가능
+    prompt_path: "models/review_analysis_prompt/v0.1.prompt" # 우선 Gemini와 동일한 프롬프트 사용 

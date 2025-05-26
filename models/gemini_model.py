@@ -1,4 +1,3 @@
-import json
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
@@ -6,7 +5,6 @@ from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.exceptions import OutputParserException
 from app.schemas import ReviewAnalysisOutput, ReviewInputs
 import logging
-import os
 
 load_dotenv()
 
