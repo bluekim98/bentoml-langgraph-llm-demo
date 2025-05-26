@@ -15,12 +15,12 @@
 
 ## 4. 핵심 함수 정의
 
-### 4.1. `invoke_gemini_with_structured_output(prompt_file_path: str, params: dict, model_name: str, temperature: float) -> ReviewAnalysisOutput`
+### 4.1. `invoke_gemini_with_structured_output(prompt_file_path: str, params: app.schemas.ReviewInputs, model_name: str, temperature: float) -> ReviewAnalysisOutput`
 
--   **목적**: 지정된 프롬프트 파일, 파라미터, 모델명, 온도를 사용하여 Gemini 모델을 동적으로 생성 및 호출하고, 응답을 Pydantic 모델 객체로 구조화하여 반환합니다.
+-   **목적**: 지정된 프롬프트 파일, 리뷰 관련 파라미터 (`app.schemas.ReviewInputs` 타입), 모델명, 온도를 사용하여 Gemini 모델을 동적으로 생성 및 호출하고, 응답을 Pydantic 모델 객체로 구조화하여 반환합니다.
 -   **입력**:
     -   `prompt_file_path: str`: 사용할 메타 프롬프트 파일의 경로.
-    -   `params: dict`: 프롬프트 포맷팅에 사용될 딕셔너리 형태의 파라미터.
+    -   `params: app.schemas.ReviewInputs`: 프롬프트 포맷팅에 사용될 `TypedDict`. `review_text`, `rating`, `ordered_items` 키를 포함합니다. (`app/schemas.py`에 정의된 `ReviewInputs` 사용)
     -   `model_name: str`: 사용할 Gemini 모델의 이름 (예: "gemini-2.0-flash", "gemini-pro"). **필수 입력**.
     -   `temperature: float`: 모델의 생성 온도. **필수 입력**.
 -   **처리 과정**:

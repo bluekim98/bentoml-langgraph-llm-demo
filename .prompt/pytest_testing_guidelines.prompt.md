@@ -71,14 +71,24 @@
     ```
 
 ## 6. 프로젝트 구조 및 임포트
--   테스트 파일에서 프로젝트 내 다른 모듈을 임포트할 때, `sys.path`에 프로젝트 루트 경로를 추가하여 절대 경로 임포트 문제를 해결합니다.
-    ```python
-    # tests/test_example.py 상단
-    import sys
-    import os
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from app.some_module import some_function
+-   테스트 파일에서 프로젝트 내의 다른 모듈(예: `app.some_module`)을 임포트할 때, `pytest`가 프로젝트 루트 디렉토리를 올바르게 인식하도록 설정하는 것이 중요합니다.
+-   **권장 방식**: 프로젝트 루트에 `pytest.ini` 파일을 만들고 다음과 같이 `pythonpath`를 설정합니다. 이를 통해 모든 테스트 파일에서 별도의 경로 수정 없이 일관되게 모듈을 임포트할 수 있습니다.
+    ```ini
+    # pytest.ini (프로젝트 루트)
+    [pytest]
+    python_files = test_*.py tests_*.py *_test.py *_tests.py
+    # ... 다른 pytest 설정들 ...
+    pythonpath = .
     ```
+    또는 `pyproject.toml`을 사용하는 경우:
+    ```toml
+    # pyproject.toml (프로젝트 루트)
+    [tool.pytest.ini_options]
+    # ... 다른 pytest 설정들 ...
+    pythonpath = ["."]
+    ```
+-   이렇게 설정하면, 테스트 파일 내에서 `from app.some_module import some_function`과 같이 프로젝트 루트를 기준으로 절대 경로 임포트를 사용할 수 있습니다.
+-   **지양 방식**: 각 테스트 파일 상단에서 `sys.path.insert(...)`를 사용하여 직접 경로를 수정하는 것은 일관성 유지가 어렵고, 각 파일마다 중복 코드가 발생하므로 권장하지 않습니다.
 
 ## 7. 환경 변수 및 설정
 -   API 키와 같이 민감하거나 환경에 따라 달라지는 설정은 환경 변수를 사용합니다.

@@ -4,7 +4,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.exceptions import OutputParserException
-from app.schemas import ReviewAnalysisOutput
+from app.schemas import ReviewAnalysisOutput, ReviewInputs
 import logging
 import os
 
@@ -18,7 +18,7 @@ output_parser = PydanticOutputParser(pydantic_object=ReviewAnalysisOutput)
 
 def invoke_gemini_with_structured_output(
     prompt_file_path: str,
-    params: dict,
+    params: ReviewInputs,
     model_name: str,
     temperature: float
 ) -> ReviewAnalysisOutput:
@@ -28,7 +28,7 @@ def invoke_gemini_with_structured_output(
 
     Args:
         prompt_file_path: 사용할 메타 프롬프트 파일의 경로.
-        params: 프롬프트 포맷팅에 사용될 딕셔너리 형태의 파라미터.
+        params: 프롬프트 포맷팅에 사용될 `app.schemas.ReviewInputs` 타입의 딕셔너리.
         model_name: 사용할 Gemini 모델의 이름 (예: "gemini-1.5-flash-latest"). 필수 입력.
         temperature: 모델의 생성 온도. 필수 입력.
 

@@ -1,20 +1,10 @@
 # tests/models/test_gemini_model.py
-import sys
 import os
 import pytest
-import importlib
-# from langchain_core.exceptions import OutputParserException # 현재 사용 안 함
-# from langchain_core.messages import AIMessage # 현재 사용 안 함
-
-# 프로젝트 루트 경로를 sys.path에 추가
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from models.gemini_model import invoke_gemini_with_structured_output # gemini import 제거
 from app.schemas import ReviewAnalysisOutput
 from app.config_loader import get_model_config # config_loader 추가
-
-# pytest-mock 설치 여부 확인
-# PYTEST_MOCK_INSTALLED = importlib.util.find_spec("pytest_mock") is not None # 현재 mock 테스트 없음
 
 # GOOGLE_API_KEY 존재 여부 확인
 API_KEY_PRESENT = os.getenv("GOOGLE_API_KEY") is not None
@@ -108,9 +98,3 @@ def test_file_not_found_exception(valid_params):
     # FileNotFoundError의 메시지에 파일 경로가 포함되는지 확인 (OS 따라 메시지 다를 수 있음)
     assert non_existent_prompt_path in str(excinfo.value) or "No such file or directory" in str(excinfo.value)
     print(f"FileNotFoundError 발생 확인: {excinfo.type}")
-
-# review_analysis_prompt_file fixture는 model_config_from_yaml로 대체되었으므로 제거
-# @pytest.fixture
-# def review_analysis_prompt_file():
-#     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-#     return os.path.join(project_root, "models/review_analysis_prompt/v0.1.prompt") 

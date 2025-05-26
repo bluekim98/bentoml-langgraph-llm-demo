@@ -3,9 +3,6 @@ import sys
 import os
 import pytest
 
-# 프로젝트 루트 경로를 sys.path에 추가
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
 from app.analyze_review_node import analyze_review_for_graph
 from app.schemas import ReviewAnalysisOutput
 
@@ -18,7 +15,7 @@ def valid_state_input():
     return {
         "review_text": "This food was amazing, delivery was fast!",
         "rating": 5,
-        "ordered_items": "['Pizza', 'Coke']"
+        "ordered_items": ["Pizza", "Coke"]
     }
 
 # --- Test Cases ---
@@ -30,11 +27,14 @@ def test_analyze_review_successful_real_llm_call(valid_state_input):
     이 테스트는 GOOGLE_API_KEY가 설정된 환경에서만 실행됩니다.
     기본 모델 설정을 사용하기 위해 selected_model_config_key에 None을 전달합니다.
     """
-    state = {**valid_state_input, "selected_model_config_key": None} 
+    state = {
+        "review_inputs": valid_state_input,
+        "selected_model_config_key": None
+    } 
     
     result = analyze_review_for_graph(state)
 
-    assert result["error_message"] is None, f"Error message was not None: {result['error_message']}"
+    assert result["analysis_error_message"] is None, f"Error message was not None: {result.get('analysis_error_message')}"
     
     assert "review_inputs" in result, "'review_inputs' key missing in result"
     assert isinstance(result["review_inputs"], dict), "'review_inputs' should be a dictionary"
