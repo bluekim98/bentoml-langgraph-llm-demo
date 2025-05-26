@@ -1,0 +1,82 @@
+# Design Prompt: `app/analyze_review_node.py`
+
+## 1. 개요
+이 문서는 `app/analyze_review_node.py` 모듈의 설계 및 구현 가이드라인을 정의합니다. 이 모듈은 LangGraph 내에서 리뷰 분석을 수행하는 노드의 역할을 담당합니다. 모델 선택 및 설정은 `config/model_configurations.yaml` 파일을 통해 관리되며, `app.config_loader`를 사용하여 로드됩니다.
+
+## 2. 모듈 위치
+`app/analyze_review_node.py`
+
+## 3. 주요 기능
+- state 를 통해 텍스트, 평점, 주문 메뉴 목록, 모델키를 입력받고 model 을 호출해 분석을 진행한다
+- 필수 입력값인 텍스트, 평점, 주문메뉴목록은 검증을 진행한다 (단, 모델키는 검증하지 않는다. 이는 app.config_loader.get_model_config 에서 이미 담당한다)
+- 모델 분석이 완료되면 prams, output, model, error 정보를 응답한다
+
+## 4. 핵심 함수 정의
+
+### 4.1. `analyze_review_for_graph(state: dict) -> dict`
+
+-   **목적**: LangGraph의 상태(state)를 입력받아 리뷰 분석을 수행하고, 분석 결과를 포함하는 딕셔너리를 반환하여 그래프 상태를 업데이트합니다.
+-   **입력 (`state: dict`)**:
+    -   LangGraph의 현재 상태를 나타내는 딕셔너리입니다.
+    -   포함 키:
+        -   `review_text: str`: 고객 리뷰 원문
+        -   `rating: int | float`: 고객 평점
+        -   `ordered_items: str | list[str]`: 주문 메뉴
+        -   `selected_model_config_key: str | None`: 사용할 모델 설정 키. `None`이면 기본 설정 사용.
+-   **처리 과정**:
+    1.  `state`에서 입력 값 (`review_text`, `rating`, `ordered_items`, `selected_model_config_key`)을 가져옵니다.
+    2.  필수 입력 값 (`review_text`, `rating`, `ordered_items`)의 존재 유무를 검증하고, 누락 시 오류를 설정하여 반환 준비를 합니다.
+    3.  `app.config_loader.get_model_config(config_key=state.get("selected_model_config_key"))`를 호출하여 모델 설정을 가져옵니다.
+    4.  `importlib.import_module`과 `getattr`를 사용하여 LLM 클라이언트 함수를 동적으로 가져옵니다. 모듈이나 함수를 찾지 못하면 오류로 처리합니다.
+    5.  LLM 클라이언트 함수를 호출하여 리뷰 분석을 수행합니다. 이때, 프롬프트 파일 경로, 리뷰 데이터(`review_text`, `rating`, `ordered_items`), `llm_params`에서 추출한 `model_name`과 `temperature`를 인자로 전달합니다.
+    6.  호출 과정에서 발생할 수 있는 주요 예외(예: 프롬프트 파일 누락 (`FileNotFoundError`), LLM 파라미터 관련 `ValueError`, 클라이언트 함수 내부 예외 등)를 포괄적으로 감지하여 오류로 처리합니다.
+    7.  분석 결과 또는 처리 중 발생한 오류 정보를 포함하여 지정된 반환 형식의 딕셔너리를 구성합니다.
+-   **반환 (`dict`)**:
+    -   LangGraph 상태를 업데이트하기 위한 딕셔너리입니다.
+    -   성공 시 포함 정보:
+        -   `review_inputs: dict`: 분석에 사용된 원본 입력 (`review_text`, `rating`, `ordered_items`). ("prams")
+        -   `analysis_output: app.schemas.ReviewAnalysisOutput`: 분석 결과 객체. ("output")
+        -   `model_key_used: str`: 분석에 실제 사용된 모델 설정 키. ("model")
+        -   `error_message: None`
+    -   실패 시 포함 정보:
+        -   `review_inputs: dict`: 분석 시도한 원본 입력.
+        -   `analysis_output: None`
+        -   `model_key_used: str`: 분석 시도한 모델 설정 키.
+        -   `error_message: str`: 발생한 오류 설명. ("error")
+
+## 5. 로깅
+-   표준 `logging` 모듈을 사용하여 주요 실행 단계 및 오류 상황을 기록합니다.
+
+## 6. 의존성
+-   주요 의존성은 `app.config_loader`, `app.schemas`, `importlib`, `logging`, `os` 등입니다.
+
+## 7. 향후 확장성
+-   새로운 모델 설정을 추가하려면 `config/model_configurations.yaml` 파일에 새 항목을 정의하면 됩니다.
+-   새로운 유형의 LLM 클라이언트 모듈(예: 다른 API를 사용하는 모델)을 통합하려면, 해당 클라이언트 로직을 담은 모듈을 생성하고, YAML 설정에서 `client_module`과 `client_function_name`을 올바르게 지정합니다.
+
+## 8. 참고: LangGraph 노드 함수 시그니처
+LangGraph에서 노드로 사용될 함수는 일반적으로 상태 객체(또는 딕셔너리)를 입력으로 받고, 상태 업데이트를 위한 딕셔너리(또는 상태 객체의 일부)를 반환하는 형태를 가집니다.
+
+'''python
+# 예시: LangGraph의 일반적인 노드 함수
+# from typing import TypedDict, Partial
+#
+# class AgentState(TypedDict):
+#     review_text: str
+#     rating: float
+#     # ... 다른 필드 ...
+#     selected_model_config_key: str | None # 수정됨
+#     analysis_output: ReviewAnalysisOutput | None
+#     error_message: str | None
+#     used_model_config_key: str | None # 수정됨
+#
+# def analyze_review_node(state: AgentState) -> Partial[AgentState]:
+#     # 로직 수행...
+#     if success:
+#         return {"analysis_output": result_object, "used_model_config_key": actual_config_key}
+#     else:
+#         return {"error_message": "An error occurred", "analysis_output": None, "used_model_config_key": attempted_config_key}
+
+# 현재는 간단히 dict를 사용하고, 추후 필요시 TypedDict 또는 Pydantic 모델로 구체화합니다.
+'''
+`analyze_review_for_graph` 함수는 이러한 패턴을 따르도록 설계합니다. 

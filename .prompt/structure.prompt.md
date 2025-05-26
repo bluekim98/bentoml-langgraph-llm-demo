@@ -45,34 +45,26 @@ conda activate oslo_env
 
 ## 코드 생성 가이드 프롬프트 규칙
 
-코드 생성을 위한 상세 설계 및 지침을 담는 `.prompt.md` 파일은 다음 규칙에 따라 `.prompt/main/` 하위 경로에 생성합니다.
+코드 생성을 위한 상세 설계 및 지침을 담는 `.prompt.md` 파일은 다음 규칙에 따라 `.prompt/` 하위 경로에 생성합니다.
 
-1.  **기준 경로:** 모든 코드 생성 가이드 프롬프트는 `.prompt/main/` 디렉토리 하위에 위치합니다.
-2.  **경로 미러링:** `.prompt/main/` 내에서의 경로는 해당 프롬프트가 기술하는 대상 Python 파일의 프로젝트 내 상대 경로를 그대로 따릅니다.
-    *   예시:
-        *   `models/gemini_model.py` 파일의 설계를 위한 프롬프트는 `.prompt/main/models/gemini_model.prompt.md` 에 위치합니다.
-        *   `app/nodes/example_node.py` 파일의 설계를 위한 프롬프트는 `.prompt/main/app/nodes/example_node.prompt.md` 에 위치합니다.
+- 프로젝트 공통 프롬프트: .prompt/ 하위
+    - 예: .prompt/structure.prompt.md
+    - 예: .prompt/pytest_testing_guidelines.prompt.md 
+- 코드 레벨 프롬프트: .prompt/main/<패키지_경로>/<코드_파일명>.prompt.md
+    - 예: app/service.py의 프롬프트는 .prompt/main/app/service.prompt.md
+    - 예: models/gemini_model.py의 프롬프트는 .prompt/main/models/gemini_model.prompt.md
 
-## 프로젝트 패키지 구조
-oslo-ai/
-├── bentos/                  # BentoML 서비스 정의 및 관련 파일
-│   └── service.py   # 핵심 BentoML 서비스 파일
-│   └── __init__.py
-├── app/                     # 핵심 애플리케이션 로직 (LangGraph)
-│   ├── __init__.py
-│   ├── graph.py             # LangGraph 실행 그래프(StatefulGraph) 정의
-│   ├── nodes.py             # LangGraph의 노드(Node) 함수들 정의
-│   ├── schemas.py           # API 및 내부 데이터 구조를 위한 Pydantic 모델
-│   ├── chains.py            # (선택) LangChain LCEL 체인 정의
-│   └── utils.py             # 애플리케이션 전반에 사용될 유틸리티 함수
-├── models/                  # 모델 관련 설정, 클라이언트 래퍼 또는 소규모 로컬 모델
-│   ├── __init__.py
-│   └── llm_clients.py       # OpenAI, Gemini 등 LLM 클라이언트 래퍼
-├── tests/                   # 단위 테스트 및 통합 테스트
-│   ├── __init__.py
-├── .env                     # (Git에 포함되지 않음) 환경 변수 (API 키 등 민감 정보)
-├── bentofile.yaml           # BentoML 빌드 설정 파일
-└── README.md                # 프로젝트 설명 및 실행 방법
+## 주석 작성 가이드라인
+
+코드의 명확성과 유지보수성을 위해 다음 가이드라인에 따라 주석을 작성합니다.
+
+1.  **처리 과정 설명**: 주요 로직의 각 단계를 설명하는 주석은 권장됩니다. 특히 여러 단계로 구성된 복잡한 함수의 경우, 각 단계가 무엇을 하는지 간략히 설명하는 주석은 코드 이해를 돕습니다. (예: `# 처리 과정 1: 입력 값 검증`)
+2.  **명백한 코드에 대한 주석 지양**: 코드를 통해 쉽게 유추할 수 있는 내용에 대해서는 주석을 작성하지 않습니다. 변수명이나 함수명이 명확하다면, 해당 코드 라인에 대한 부연 설명은 불필요합니다.
+    *   예시 (지양): `count = 0 # count 변수를 0으로 초기화`
+3.  **"왜"에 집중**: 코드가 "무엇을" 하는지보다 "왜" 그렇게 작성되었는지 설명하는 주석이 더 가치가 있습니다. 특정 디자인 결정이나 비즈니스 로직의 배경을 설명해야 할 때 주석을 사용합니다. (단, 현재 프로젝트에서는 이 부분은 `.prompt.md` 자체에서 주로 다루어집니다.)
+4.  **최신 상태 유지**: 코드가 변경될 때 주석도 함께 업데이트하여 항상 최신 상태를 반영하도록 합니다. 오래된 주석은 혼란을 야기할 수 있습니다.
+5.  **간결성 유지**: 주석은 필요한 정보만 간결하게 전달해야 합니다. 장황한 설명은 가독성을 해칠 수 있습니다.
+6.  **주석 처리된 코드 지양**: 사용하지 않는 코드는 주석 처리하여 남겨두기보다는 버전 관리 시스템을 통해 관리하고, 필요시 이전 버전에서 찾아봅니다. 코드베이스에서 완전히 제거하는 것이 좋습니다.
 
 ## 테스트코드 가이드라인
 [Pytest 테스트 코드 작성 가이드라인](pytest_testing_guidelines.prompt.md)
