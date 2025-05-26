@@ -15,10 +15,37 @@
         - LLM 응답을 구조화된 Pydantic 모델(예: `ReviewAnalysisOutput`)로 파싱.
     - **관계**: `ModelConfigurationEntry`에 의해 지정됨. `analyze_review_node`에서 동적으로 로드 및 호출됨.
 
-- **`SystemPrompt` (시스템 프롬프트)**:
-    - **설명**: LLM이 특정 작업(이 경우 리뷰 분석)을 수행하는 방식, 응답 형식, 페르소나 등을 정의하는 기본 지침 프롬프트입니다. 일반적으로 `.prompt.md` 또는 `.txt` 파일 형태로 관리되며, `ModelConfigurationEntry`에 경로가 지정됩니다.
+- **`SystemPrompt` (시스템 프롬프트 v0.1 - `models/review_analysis_prompt/v0.1.prompt` 기반)**:
+    - **설명**: LLM이 "음식 배달 리뷰 분석 서비스"의 핵심 분석 작업을 수행하도록 안내하는 종합적인 지침 세트입니다. 여기에는 LLM의 행동 지침, 처리할 입력 변수, 수행할 분석 작업의 종류, 그리고 반드시 지켜야 할 응답 형식이 포함됩니다.
     - **범주**: LLM 설정, 프롬프트 엔지니어링.
-    - **관계**: `LLMClientFunction`이 로드하여 LLM 호출 시 사용함.
+    - **주요 구성 요소**:
+        - **`PromptDirectives` (프롬프트 중요 지침)**:
+            - **설명**: 개인정보 보호, 특정 정보 생성 금지 등 LLM이 반드시 준수해야 할 최상위 규칙들을 명시합니다. (예: "개인 식별 정보 포함 금지", "JSON 형식으로만 응답")
+            - **범주**: LLM 행동 제어, 보안 및 개인정보 보호.
+        - **`PromptInputVariables` (프롬프트 입력 변수)**:
+            - **설명**: LLM이 분석을 위해 제공받는 데이터의 종류와 플레이스홀더를 정의합니다.
+            - **범주**: 프롬프트 데이터 인터페이스.
+            - **예시**:
+                - `{review_text}`: 실제 고객 리뷰 내용 (문자열).
+                - `{rating}`: 고객이 부여한 평점 (숫자, 예: 5점 만점).
+                - `{ordered_items}`: 고객이 주문한 메뉴 목록 (문자열 또는 문자열 리스트).
+        - **`AnalysisTaskDefinition` (분석 작업 정의)**:
+            - **설명**: LLM에게 입력 정보를 바탕으로 수행해야 할 구체적인 분석 항목과 요구사항을 상세히 기술합니다. 리뷰의 다면적 해석(숨겨진 불만 등)을 강조합니다.
+            - **범주**: LLM 작업 지시.
+            - **세부 분석 항목 예시 (`ReviewAnalysisOutput` 필드와 연관)**:
+                - `score`: 리뷰의 전반적인 긍/부정 점수 (0.00 ~ 1.00).
+                - `summary`: 리뷰 핵심 내용 요약.
+                - `keywords`: 주요 키워드 추출 (3~5개).
+                - `reply`: 고객 응대용 답변 생성.
+                - `analysis_score`: 점수 부여 근거 설명.
+                - `analysis_reply`: 답변 생성 근거 설명.
+        - **`FormatInstructions` (응답 형식 지침)**:
+            - **설명**: LLM이 생성해야 하는 최종 응답의 구체적인 구조(특히 JSON 형식 및 Pydantic 스키마)를 명시하는 지침입니다. 이 지침은 LLM에게 Pydantic 모델(`ReviewAnalysisOutput`)의 필드, 타입, 설명 등을 포함한 JSON 스키마를 제공하여, LLM이 이 스키마를 정확히 따르는 JSON 응답을 생성하도록 유도합니다.
+            - **범주**: 프롬프트 엔지니어링, LLM 출력 제어.
+            - **생성 방식**: `langchain_core.output_parsers.PydanticOutputParser` 객체의 `get_format_instructions()` 메서드를 통해 동적으로 생성됩니다. 이 파서는 대상 Pydantic 모델(예: `ReviewAnalysisOutput`)을 기반으로 해당 지침을 만듭니다.
+            - **사용 위치**: 시스템 프롬프트 내의 `{format_instructions}` 플레이스홀더에 주입되어 LLM에게 전달됩니다. (예: `models/review_analysis_prompt/v0.1.prompt` 파일 참조)
+            - **중요성**: LLM의 출력을 일관되고 검증 가능한 구조화된 데이터(Pydantic 모델로 파싱 가능한 JSON)로 만드는 데 핵심적인 역할을 합니다. `with_structured_output`과 같은 LLM 라이브러리 기능을 사용할 때도, 프롬프트 내에 이러한 명시적 지침을 함께 제공하면 LLM의 구조화된 출력 생성 능력을 향상시킬 수 있습니다.
+    - **관계**: `LLMClientFunction`이 로드하여 사용자 입력과 결합 후 LLM 호출 시 사용함. `ModelConfigurationEntry`에 경로가 지정됨.
 
 - **`LLMParameters` (LLM 매개변수)**:
     - **설명**: LLM의 동작을 제어하는 설정값들입니다 (예: `model_name`, `temperature`, `max_output_tokens`).
