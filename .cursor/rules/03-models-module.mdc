@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: LLM 모델 클라이언트 함수, 시스템 프롬프트 구성 요소(지침, 입력 변수, 분석 작업, 응답 형식), LLM 매개변수 등 models 모듈 및 LLM 상호작용 관련 용어와 개념을 정의합니다.
+globs: ["models/**/*.py", "models/**/*.prompt", "config/model_configurations.yaml"]
+alwaysApply: false
+---
+
+# models 모듈 관련 용어
+
+- **LLMClientFunction**: 특정 LLM API와 통신하여 프롬프트와 입력을 전달하고, 모델의 응답을 받아오는 역할을 하는 함수
+- **SystemPrompt**: LLM이 리뷰 분석 작업을 수행하도록 안내하는 종합적인 지침 세트입니다. 여기에는 LLM의 행동 지침, 입력 변수, 분석 작업 정의, 그리고 Pydantic 스키마를 기반으로 하는 **응답 형식 지침(`FormatInstructions`)** 등이 포함됩니다.
+- **LLMParameters**: LLM의 동작을 제어하는 설정값들 (예: model_name, temperature, max_output_tokens)
