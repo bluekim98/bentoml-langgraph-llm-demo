@@ -1,5 +1,119 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: false
 ---
+description: "LLM 성능 벤치마크를 위한 윌슨 스코어 기반 평가 모듈(llm_accuracy_evaluator.py)을 문서화합니다."
+globs:
+  - "evaluation/llm_accuracy_evaluator.py"
+  - "evaluation/**" # evaluation 디렉토리 내 다른 관련 파일이 생길 경우 대비
+alwaysApply: false
+---
+# 규칙: 06 - 벤치마크 평가 모듈 (llm_accuracy_evaluator.py)
+
+## 1. 목적
+
+이 모듈(`evaluation/llm_accuracy_evaluator.py`)은 음식점 리뷰 텍스트에 대한 LLM의 감성 분석 성능을 정량적으로 평가하기 위해 설계되었습니다. 주요 특징은 다음과 같습니다:
+
+*   사람이 평가한 점수(`pre_score`)와 LLM이 평가한 점수(`score`)를 비교합니다.
+*   단순 정확도뿐만 아니라, 통계적 신뢰도를 제공하기 위해 **윌슨 스코어 신뢰 구간(Wilson Score Confidence Interval)**을 사용합니다.
+*   점수를 세 가지 감성 범주(Negative, Neutral, Positive)로 구간화하여 각 범주별 성능을 세밀하게 분석합니다.
+
+## 2. 주요 기능
+
+### 2.1. `get_sentiment_bin_label(score: float) -> str`
+
+*   0.0에서 1.0 사이의 점수를 입력받아 정의된 경계값에 따라 "Negative", "Neutral", "Positive" 중 하나의 감성 범주 레이블을 반환합니다.
+*   **감성 범주 경계값:**
+    *   **Negative**: `0.0 <= score < 1/3` (약 0.333 미만)
+    *   **Neutral**: `1/3 <= score < 2/3` (약 0.333 이상, 약 0.666 미만)
+    *   **Positive**: `2/3 <= score <= 1.0` (약 0.666 이상)
+
+### 2.2. `evaluate_llm_accuracy_by_sentiment_bin(...) -> List[Dict[str, Any]]`
+
+*   **입력 데이터**:
+    *   `json_file_path`: 평가 데이터가 담긴 JSON 파일 경로 (기본값: `data/benchmark/sample.json`).
+    *   각 JSON 객체는 `pre_score`(사람 평가)와 `score`(LLM 평가) 필드를 포함해야 합니다.
+*   **핵심 로직**:
+    1.  JSON 데이터를 로드합니다.
+    2.  각 리뷰에 대해 `pre_score`와 `score`를 가져와 `get_sentiment_bin_label` 함수를 사용해 각각의 감성 범주를 결정합니다.
+    3.  사람이 평가한 감성 범주(`human_sentiment_bin_label`)를 기준으로 그룹화합니다.
+    4.  각 `human_sentiment_bin_label` 내에서 LLM의 감성 범주가 사람의 감성 범주와 일치하는 경우(`matched_reviews_in_bin`)를 카운트합니다.
+    5.  각 `human_sentiment_bin_label` 별로 다음을 계산합니다:
+        *   `total_reviews_in_bin`: 해당 범주에 속한 총 리뷰 수.
+        *   `matched_reviews_in_bin`: LLM과 사람의 범주가 일치한 리뷰 수.
+        *   `match_rate`: (`matched_reviews_in_bin` / `total_reviews_in_bin`).
+        *   `wilson_lower_bound`, `wilson_upper_bound`: `scipy.stats.binomtest(k=matched_reviews, n=total_reviews).proportion_ci(confidence_level=0.95, method='wilson')`을 사용하여 계산된 95% 신뢰수준의 윌슨 스코어 신뢰 구간 하한 및 상한.
+        *   `llm_score_distribution`: 해당 `human_sentiment_bin_label`에 대해 LLM이 예측한 점수들이 어떤 감성 범주(N, Neu, P)에 분포하는지 나타냅니다.
+*   **출력**: 각 감성 범주별 분석 결과를 담은 딕셔너리 리스트. 결과는 "Negative", "Neutral", "Positive" 순으로 정렬됩니다.
+
+## 3. 주요 의존성
+
+*   `scipy`: 특히 `scipy.stats.binomtest`가 윌슨 스코어 신뢰 구간 계산에 사용됩니다. (`scipy>=1.7.0` 필요)
+*   `json`, `math`, `typing` (Python 기본 라이브러리)
+
+## 4. 실행 및 테스트
+
+*   스크립트 자체적으로 `if __name__ == '__main__':` 블록 내에 예제 실행 코드가 포함되어 있습니다.
+*   `python evaluation/llm_accuracy_evaluator.py` 명령으로 실행하면, `data/benchmark/sample.json` (없을 경우 더미 데이터 생성)을 사용하여 평가를 수행하고 결과를 콘솔에 출력합니다.
+
+## 5. 결과 해석 가이드
+
+평가 결과는 각 `human_sentiment_bin_label` (Negative, Neutral, Positive) 별로 다음 정보를 제공합니다:
+
+*   **`Total`**: 해당 인간 평가 범주에 속하는 총 리뷰 수.
+*   **`Matched`**: 해당 인간 평가 범주 내에서 LLM 예측 범주가 일치한 리뷰 수.
+*   **`Match Rate`**: 일치율. 해당 범주에서 LLM이 얼마나 정확하게 분류했는지 나타냅니다.
+*   **`Wilson CI (lower, upper)`**: 일치율에 대한 95% 신뢰 구간. 실제 성능이 존재할 가능성이 높은 범위를 나타냅니다.
+    *   구간이 좁고 상위 값에 위치할수록 해당 범주에 대한 LLM의 성능을 더 신뢰할 수 있습니다.
+    *   샘플 수가 적은 범주일수록 신뢰 구간이 넓어질 수 있습니다.
+*   **`LLM Dist (N, Neu, P)`**: 해당 인간 평가 범주에 속한 리뷰들에 대해 LLM이 어떤 감성 범주로 예측했는지 분포를 보여줍니다. 오분류 패턴을 파악하는 데 유용합니다 (예: 중립 리뷰를 주로 부정으로 잘못 판단하는지 등).
+
+이 규칙은 LLM의 감성 분석 성능을 지속적으로 모니터링하고 개선하는 데 필요한 평가 방법론을 이해하는 데 도움을 줄 것입니다.
+
+## Evaluation Module Overview
+
+The `evaluation` module is designed to assess the performance of LLM-based sentiment analysis models. It consists of two main Python scripts:
+
+1.  `llm_accuracy_evaluator.py`: This script takes a JSON file containing human-annotated scores and LLM-generated scores for a set of reviews. It categorizes these scores into sentiment bins (Negative, Neutral, Positive) and calculates various metrics, including match rates and Wilson confidence intervals for each human sentiment bin. It also determines the distribution of LLM predictions within each human-evaluated bin.
+2.  `reporter.py`: This script is responsible for generating a detailed Markdown report based on the evaluation results produced by `llm_accuracy_evaluator.py`.
+3.  `run_evaluation.py`: This is the main executable script for running evaluations. It takes the path to an evaluation data file (JSON format) as a command-line argument, orchestrates the evaluation process using `llm_accuracy_evaluator.py`, and then generates a human-readable Markdown report using `reporter.py`.
+
+## `evaluation/reporter.py` Context
+
+The `reporter.py` script contains the `generate_markdown_report` function.
+
+### `generate_markdown_report` Function
+
+-   **Purpose**: To create a comprehensive and readable Markdown report summarizing the LLM's performance.
+-   **Inputs**:
+    -   `evaluation_results` (List[Dict[str, Any]]): A list of dictionaries, where each dictionary represents a human sentiment bin (e.g., "Negative") and contains detailed metrics like total reviews, matched reviews, match rate, Wilson confidence interval bounds, and the LLM's prediction distribution for that bin. This data is typically generated by `evaluate_llm_accuracy_by_sentiment_bin` in `llm_accuracy_evaluator.py`.
+    -   `dataset_filename` (str): The name or path of the dataset file that was used for the evaluation (e.g., "data/benchmark/my_model_results.json"). This is used in the report header.
+    -   `model_name` (str, optional, defaults to "LLM"): The name of the LLM model that was evaluated. Used for report titling and descriptions.
+
+-   **Output**:
+    -   Returns the `str` filepath of the generated Markdown report.
+    -   The report is saved in the `data/benchmark/result/` directory.
+    -   The filename is dynamically generated based on the dataset filename, model name, and a timestamp (e.g., `my_model_results_on_AwesomeLLM_eval_20240717_103045.md`).
+
+-   **Report Structure**:
+    1.  **Header**: Includes the model name, dataset filename, and generation timestamp.
+    2.  **Evaluation Summary (Section 1)**:
+        -   A Markdown table providing a high-level overview.
+        -   Columns: Human Sentiment Bin, Total Reviews, Matched Reviews, Match Rate, Wilson CI (95%), LLM Prediction Distribution (Negative, Neutral, Positive counts).
+    3.  **Detailed Analysis per Human Sentiment Bin (Section 2)**:
+        -   This section is presented in **Korean**.
+        -   For each human sentiment bin ("부정", "중립", "긍정"):
+            -   **총 리뷰 수 (Total Reviews)**: Interpretation of the total count.
+            -   **일치된 리뷰 수 (Matched Reviews)**: Interpretation of how many the LLM correctly identified.
+            -   **일치율 (Match Rate)**: Interpretation of the model's accuracy for that bin.
+            -   **윌슨 신뢰 구간 (95%) (Wilson Confidence Interval)**: Interpretation of the confidence interval and notes on model reliability based on the interval bounds.
+            -   **사람이 '{bin}'으로 평가한 리뷰에 대한 {model_name}의 예측 분포 (LLM Prediction Distribution)**: Counts of LLM predictions (Negative, Neutral, Positive) for reviews in this human-rated bin.
+            -   **오분류 분석 (Misclassification Insights)**: A qualitative description of how reviews in this bin were misclassified by the LLM (e.g., "X개를 중립(실제보다 긍정적)으로").
+
+-   **Key Functionality**:
+    -   Formats evaluation metrics into a structured, human-readable report.
+    -   Provides both a quick summary table and detailed textual analysis (in Korean).
+    -   Includes confidence intervals to help assess the reliability of match rates.
+    -   Details how the LLM distributes its predictions for each category of human-annotated sentiment.
+    -   Automatically names and saves the report file with a timestamp.

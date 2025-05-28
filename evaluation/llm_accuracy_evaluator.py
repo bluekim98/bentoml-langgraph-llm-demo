@@ -2,6 +2,8 @@ import json
 import math
 from scipy.stats import binomtest
 from typing import List, Dict, Any, Tuple
+import os
+from .reporter import generate_markdown_report
 
 # 경계값 정의 (예시 2 기준)
 NEGATIVE_THRESHOLD_UPPER = 1/3  # 0.0 <= score < 0.333...
@@ -129,65 +131,3 @@ def evaluate_llm_accuracy_by_sentiment_bin(
         })
         
     return results
-
-if __name__ == '__main__':
-    dummy_data_path = "data/benchmark/sample.json" # Assuming your actual data is here
-    
-    # Create a dummy sample.json for testing if it doesn't exist or is invalid
-    # This part can be removed if you are sure sample.json is always present and valid
-    try:
-        with open(dummy_data_path, 'r') as f:
-            json.load(f) # Try to load to check validity
-        print(f"Using existing and valid {dummy_data_path}")
-    except (FileNotFoundError, json.JSONDecodeError):
-        print(f"Creating/Overwriting dummy {dummy_data_path} for testing as it's missing or invalid.")
-        import os
-        if not os.path.exists("data/benchmark"):
-            os.makedirs("data/benchmark")
-
-        dummy_reviews = [
-            {"id": 1, "review_text": "Great!", "pre_score": 0.95, "score": 0.88},  # P, P
-            {"id": 2, "review_text": "Awful", "pre_score": 0.12, "score": 0.05},   # N, N
-            {"id": 3, "review_text": "Okay", "pre_score": 0.55, "score": 0.61},    # Neu, Neu
-            {"id": 4, "review_text": "Superb", "pre_score": 0.82, "score": 0.91},  # P, P
-            {"id": 5, "review_text": "Bad", "pre_score": 0.23, "score": 0.15},     # N, N
-            {"id": 6, "review_text": "Good", "pre_score": 0.75, "score": 0.77},    # P, P
-            {"id": 7, "review_text": "Perfect", "pre_score": 1.0, "score": 0.99},  # P, P
-            {"id": 8, "review_text": "Terrible", "pre_score": 0.0, "score": 0.01}, # N, N
-            {"id": 9, "review_text": "Fine", "pre_score": 0.49, "score": 0.41},    # Neu, Neu
-            {"id": 10, "review_text": "Excellent", "pre_score": 0.91, "score": 0.95},# P, P
-            {"id": 11, "review_text": "Mid", "pre_score": 0.50, "score": 0.20},      # Neu, N
-            {"id": 12, "review_text": "High then Low", "pre_score": 0.88, "score": 0.11}, # P, N
-            {"id": 13, "review_text": "Low then High", "pre_score": 0.15, "score": 0.85}, # N, P
-            {"id": 14, "review_text": "VGood", "pre_score": 0.80, "score": 0.80},     # P, P
-            {"id": 15, "review_text": "Neg Example", "pre_score": 0.10, "score": 0.20},# N, N
-            {"id": 16, "review_text": "Neu Example", "pre_score": 0.45, "score": 0.50},# Neu, Neu
-            {"id": 17, "review_text": "Pos Example", "pre_score": 0.90, "score": 0.80},# P, P
-            {"id": 18, "review_text": "Neg Mismatch Neu", "pre_score": 0.20, "score": 0.50},# N, Neu
-            {"id": 19, "review_text": "Neu Mismatch Pos", "pre_score": 0.50, "score": 0.80},# Neu, P
-            {"id": 20, "review_text": "Pos Mismatch Neu", "pre_score": 0.80, "score": 0.50},# P, Neu
-            {"id": 21, "review_text": "Neg Border", "pre_score": 0.33, "score": 0.30}, # N, N (0.333.. 미만)
-            {"id": 22, "review_text": "Neu Border Low", "pre_score": 0.34, "score": 0.40},# Neu, Neu (0.333.. 이상)
-            {"id": 23, "review_text": "Neu Border High", "pre_score": 0.66, "score": 0.60},# Neu, Neu (0.666.. 미만)
-            {"id": 24, "review_text": "Pos Border", "pre_score": 0.67, "score": 0.70}, # P, P (0.666.. 이상)
-            {"id": 25, "review_text": "Extreme Neg", "pre_score": 0.01, "score": 0.02}, # N, N
-            {"id": 26, "review_text": "Extreme Pos", "pre_score": 0.99, "score": 0.98}, # P, P
-        ]
-        with open(dummy_data_path, 'w', encoding='utf-8') as f:
-            json.dump(dummy_reviews, f, indent=2, ensure_ascii=False)
-        print(f"Dummy {dummy_data_path} created/overwritten for testing.")
-
-    evaluation_results = evaluate_llm_accuracy_by_sentiment_bin(json_file_path=dummy_data_path)
-    if evaluation_results:
-        print("\\nEvaluation Results by Sentiment Bin (Negative, Neutral, Positive):")
-        for result in evaluation_results:
-            print(
-                f"  Human Sentiment Bin: {result['human_sentiment_bin_label']:<10} | "
-                f"Total: {result['total_reviews_in_bin']:<5} | "
-                f"Matched: {result['matched_reviews_in_bin']:<5} | "
-                f"Match Rate: {result['match_rate']:.2%} | "
-                f"Wilson CI: ({result['wilson_lower_bound']:.3f}, {result['wilson_upper_bound']:.3f}) | "
-                f"LLM Dist: N:{result['llm_score_distribution']['Negative']}, Neu:{result['llm_score_distribution']['Neutral']}, P:{result['llm_score_distribution']['Positive']}"
-            )
-    else:
-        print("No evaluation results generated.") 
