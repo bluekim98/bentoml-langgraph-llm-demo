@@ -1,13 +1,30 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Literal, Optional
+
+class KeywordSentiment(BaseModel):
+    keyword: str = Field(description="리뷰에서 추출한 키워드")
+    sentiment: Literal["NEGATIVE", "NEUTRAL", "POSITIVE"] = Field(
+        description="해당 키워드의 감정 분류"
+    )
 
 class ReviewAnalysisOutput(BaseModel):
-    score: float = Field(description="리뷰의 긍부정 점수 (0.00 ~ 1.00. 1.00에 가까울수록 긍정)", ge=0.0, le=1.0)
+    score: float = Field(
+        description="리뷰의 긍부정 점수 (0.00 ~ 1.00)", ge=0.0, le=1.0
+    )
     summary: str = Field(description="리뷰의 간결한 요약 문장")
-    keywords: List[str] = Field(description="리뷰 내용의 주요 키워드 목록")
+    is_question_review: bool = Field(
+        description="해당 리뷰가 문의형(질문)인지 여부"
+    )
+    overall_sentiment: Literal["NEGATIVE", "NEUTRAL", "POSITIVE"] = Field(
+        description="리뷰 전체 문맥상 감정 분류"
+    )
+    keywords: List[KeywordSentiment] = Field(
+        description="주요 키워드와 각각의 감정 분류"
+    )
     reply: str = Field(description="생성된 고객 리뷰에 대한 답변 문장")
-    analysis_score: str = Field(description="점수(score) 판단에 대한 근거 문장")
-    analysis_reply: str = Field(description="답변(reply) 생성에 대한 근거 문장")
+    analysis_score: str = Field(description="점수(score) 판단에 대한 근거")
+    analysis_reply: str = Field(description="답변(reply) 생성에 대한 근거")
+
 
 
 class ReviewInputs(BaseModel):

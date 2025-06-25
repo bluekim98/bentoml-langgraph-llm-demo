@@ -1,13 +1,8 @@
 ---
 description: 
 globs: 
-alwaysApply: false
----
----
-description: 프로젝트의 일관성 유지를 위한 파일 구조 및 명명 규칙, 주요 개발 원칙(Pydantic, LangGraph, 설정 기반 관리 등), 보안 및 개인정보 보호 수칙, 테스트 및 검증 방안을 포함하는 코딩 가이드라인입니다.
 alwaysApply: true
 ---
-
 # 코딩 가이드라인
 
 ### 파일 구조 및 명명 규칙

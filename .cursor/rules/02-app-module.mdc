@@ -1,14 +1,8 @@
 ---
-description: 
+description: app 모듈 및 관련 하위 모듈(schemas, config_loader, graph, nodes) 작업 시 필요한 Pydantic 데이터 모델(ReviewInputs, ReviewAnalysisOutput, AgentState), LangGraph 워크플로우 및 노드, 설정 키 등의 용어와 개념을 정의합니다.
 globs: 
 alwaysApply: false
 ---
----
-description: app 모듈 및 관련 하위 모듈(schemas, config_loader, graph, nodes) 작업 시 필요한 Pydantic 데이터 모델(ReviewInputs, ReviewAnalysisOutput, AgentState), LangGraph 워크플로우 및 노드, 설정 키 등의 용어와 개념을 정의합니다.
-globs: ["app/**/*.py", "app/**/schemas/*.py", "app/graph.py", "app/nodes/*.py", "config/model_configurations.yaml"]
-alwaysApply: false
----
-
 # app 모듈 관련 용어
 
 ## `app.schemas` (데이터 스키마)

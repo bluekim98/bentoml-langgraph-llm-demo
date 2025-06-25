@@ -1,12 +1,6 @@
 ---
-description: 
+description: LLM 성능 벤치마크를 위한 윌슨 스코어 기반 평가 모듈(llm_accuracy_evaluator.py)을 문서화합니다.
 globs: 
-alwaysApply: false
----
-description: "LLM 성능 벤치마크를 위한 윌슨 스코어 기반 평가 모듈(llm_accuracy_evaluator.py)을 문서화합니다."
-globs:
-  - "evaluation/llm_accuracy_evaluator.py"
-  - "evaluation/**" # evaluation 디렉토리 내 다른 관련 파일이 생길 경우 대비
 alwaysApply: false
 ---
 # 규칙: 06 - 벤치마크 평가 모듈 (llm_accuracy_evaluator.py)

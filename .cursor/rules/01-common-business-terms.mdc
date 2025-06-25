@@ -1,13 +1,8 @@
 ---
 description: 
 globs: 
-alwaysApply: false
----
----
-description: 음식 배달 리뷰 분석 서비스 프로젝트 전반에 걸쳐 공통적으로 사용되는 핵심 비즈니스 용어와 개념(리뷰, 평점, LLM, 온톨로지 등)을 정의합니다.
 alwaysApply: true
 ---
-
 # 공통 비즈니스 용어 및 개념
 
 ### 핵심 비즈니스 객체

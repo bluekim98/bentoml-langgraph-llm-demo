@@ -1,14 +1,8 @@
 ---
-description: 
+description: BentoML 서비스 클래스(ReviewAnalysisService), API 엔드포인트(/analyze_review), 컴파일된 LangGraph 앱 인스턴스, 서비스 요청/응답 데이터 등 bentos 모듈 및 배포 관련 용어를 정의합니다.
 globs: 
 alwaysApply: false
 ---
----
-description: BentoML 서비스 클래스(ReviewAnalysisService), API 엔드포인트(/analyze_review), 컴파일된 LangGraph 앱 인스턴스, 서비스 요청/응답 데이터 등 bentos 모듈 및 배포 관련 용어를 정의합니다.
-globs: ["bentos/**/*.py", "bentofile.yaml"]
-alwaysApply: false
----
-
 # bentos 모듈 관련 용어
 
 ## BentoML 서비스 및 API
